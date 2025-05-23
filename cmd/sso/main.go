@@ -1,0 +1,3 @@
+package sso
+
+func main() {}
