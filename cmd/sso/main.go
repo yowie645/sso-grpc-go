@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/yowie645/sso-grpc-go/internal/app"
 	"github.com/yowie645/sso-grpc-go/internal/config"
 	"github.com/yowie645/sso-grpc-go/internal/lib/logger/handlers/slogpretty"
 )
@@ -23,8 +24,9 @@ func main() {
 
 	// TODO инициализация логгера
 
-	// TODO инициализация приложения
+	aplication := app.New(log, cfg.GRPC.Port, cfg.StoragePath, cfg.TokenTTL)
 
+	aplication.GRPCSrv.MustRun()
 	// TODO запуск приложения
 }
 
