@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/yowie645/sso-grpc-go/internal/app"
 	"github.com/yowie645/sso-grpc-go/internal/config"
@@ -28,6 +30,16 @@ func main() {
 
 	aplication.GRPCSrv.MustRun()
 	// TODO запуск приложения
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
+	sign := <-stop
+
+	log.Info("stop signal received", slog.String("signal", sign.String()))
+
+	aplication.GRPCSrv.Stop()
+	log.Info("stop app")
 }
 
 func setupLogger(env string) *slog.Logger {
