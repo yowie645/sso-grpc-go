@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/yowie645/sso-grpc-go/internal/config"
-	"github.com/yowie645/sso-grpc-go/lib/logger/handlers/slogpretty"
+	"github.com/yowie645/sso-grpc-go/internal/lib/logger/handlers/slogpretty"
 )
 
 const (
