@@ -18,7 +18,7 @@ func New(
 	port int,
 ) *App {
 	gRPCServer := grpc.NewServer()
-	authgrpc.Register(gRPCServer)
+	authgrpc.RegisterServer(gRPCServer)
 
 	return &App{
 		log:        log,
