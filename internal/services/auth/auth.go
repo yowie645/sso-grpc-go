@@ -2,11 +2,13 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/yowie645/sso-grpc-go/internal/domain/models"
+	"github.com/yowie645/sso-grpc-go/internal/storage"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -29,12 +31,16 @@ type UserSaver interface {
 }
 
 type UserProvider interface {
-	GetUser(ctx context.Context, email string) (userID int64, err error)
+	GetUser(ctx context.Context, email string) (models.User, error)
 }
 
 type AppProvider interface {
 	App(ctx context.Context, appID int) (models.App, error)
 }
+
+var (
+	ErrInvalidCredentials = errors.New("invalid credentials")
+)
 
 // New returns a new instance of the Auth service
 func New(
@@ -53,16 +59,6 @@ func New(
 		storagePath: storagePath,
 		tokenTTL:    tokenTTL,
 	}
-}
-
-// IsAdmin implements auth.Auth.
-func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
-	panic("unimplemented")
-}
-
-// Login implements auth.Auth.
-func (a *Auth) Login(ctx context.Context, email string, password string, appID int) (string, error) {
-	panic("unimplemented")
 }
 
 // RegisterNewUser implements auth.Auth.
@@ -89,7 +85,51 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, password strin
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	log.Info("registered new user")
+	log.Info("user registered", slog.Int64("id", id))
 
 	return id, nil
+}
+
+// Login implements auth.Auth.
+func (a *Auth) Login(ctx context.Context, email string, password string, appID int) (string, error) {
+	const op = "auth.Login"
+
+	log := a.log.With(
+		slog.String("op", op),
+		slog.String("email", email),
+	)
+
+	log.Info("login user")
+
+	user, err := a.usrProvider.GetUser(ctx, email)
+	if err != nil {
+		if errors.Is(err, storage.ErrUserNotFound) {
+			a.log.Warn("user not found", slog.String("email", email))
+			return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+		}
+
+		a.log.Error("failed to get user", slog.String("error", err.Error()))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
+		a.log.Warn("invalid password", slog.String("error", err.Error()))
+
+		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+	}
+
+	app, err := a.appProvider.App(ctx, appID)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	log.Info("user logged in", slog.Int64("id", user.ID))
+
+	// токен
+	return "generated-token", nil
+}
+
+// IsAdmin implements auth.Auth.
+func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
+	panic("unimplemented")
 }
