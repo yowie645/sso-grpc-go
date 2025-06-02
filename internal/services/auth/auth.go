@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/yowie645/sso-grpc-go/internal/domain/models"
+	"github.com/yowie645/sso-grpc-go/internal/lib/jwt"
 	"github.com/yowie645/sso-grpc-go/internal/storage"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -125,8 +126,13 @@ func (a *Auth) Login(ctx context.Context, email string, password string, appID i
 
 	log.Info("user logged in", slog.Int64("id", user.ID))
 
-	// токен
-	return "generated-token", nil
+	token, err := jwt.NewToken(user, app, a.tokenTTL)
+	if err != nil {
+		a.log.Error("failed to create token", slog.String("error", err.Error()))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return token, nil
 }
 
 // IsAdmin implements auth.Auth.
