@@ -3,6 +3,8 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 	authv1 "github.com/yowie645/protos-sso-grcp-go/gen/go/sso"
@@ -44,10 +46,18 @@ func RegisterServer(gRPC *grpc.Server, auth Auth) {
 
 func (s *serverAPI) validateRequest(req interface{}) error {
 	if err := s.validate.Struct(req); err != nil {
-		validationErrors := err.(validator.ValidationErrors)
-		for _, e := range validationErrors {
-			return status.Errorf(codes.InvalidArgument, "internal server error", e.Field(), e.Tag())
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
+			var errorMsg strings.Builder
+			for _, e := range validationErrors {
+				if errorMsg.Len() > 0 {
+					errorMsg.WriteString("; ")
+				}
+				errorMsg.WriteString(fmt.Sprintf("field %s: %s", e.Field(), e.Tag()))
+			}
+			return status.Error(codes.InvalidArgument, errorMsg.String())
 		}
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil
 }

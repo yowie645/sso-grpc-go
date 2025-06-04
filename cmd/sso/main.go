@@ -24,12 +24,9 @@ func main() {
 	log := setupLogger(cfg.Env)
 	log.Info("start app", slog.Any("cfg", cfg))
 
-	// TODO инициализация логгера
+	aplication := app.New(log, cfg.GRPC.Port, cfg.StoragePath, cfg.TokenTTL, cfg.JWTSecret)
 
-	aplication := app.New(log, cfg.GRPC.Port, cfg.StoragePath, cfg.TokenTTL)
-
-	aplication.GRPCSrv.MustRun()
-	// TODO запуск приложения
+	go aplication.GRPCSrv.MustRun()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)

@@ -6,6 +6,7 @@ import (
 
 	grpcapp "github.com/yowie645/sso-grpc-go/internal/app/grpc"
 	"github.com/yowie645/sso-grpc-go/internal/services/auth"
+	"github.com/yowie645/sso-grpc-go/internal/storage/sqlite"
 )
 
 type App struct {
@@ -17,8 +18,21 @@ func New(
 	grpcPort int,
 	storagePath string,
 	tokenTTL time.Duration,
+	jwtSecret string,
 ) *App {
-	authService := auth.New(log, storagePath, tokenTTL)
+	storage, err := sqlite.New(storagePath)
+	if err != nil {
+		panic(err)
+	}
+	authService := auth.New(
+		log,
+		storage,
+		storage,
+		storage,
+		storagePath,
+		tokenTTL,
+		jwtSecret,
+	)
 	grpcApp := grpcapp.New(log, grpcPort, authService)
 
 	return &App{

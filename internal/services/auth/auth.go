@@ -21,6 +21,7 @@ type Auth struct {
 	appProvider AppProvider
 	storagePath string
 	tokenTTL    time.Duration
+	jwtSecret   string
 }
 
 type UserSaver interface {
@@ -54,6 +55,7 @@ func New(
 	appProvider AppProvider,
 	storagePath string,
 	tokenTTL time.Duration,
+	jwtSecret string,
 ) *Auth {
 	return &Auth{
 		usrSaver:    userSaver,
@@ -62,6 +64,7 @@ func New(
 		appProvider: appProvider,
 		storagePath: storagePath,
 		tokenTTL:    tokenTTL,
+		jwtSecret:   jwtSecret,
 	}
 }
 
@@ -123,7 +126,6 @@ func (a *Auth) Login(ctx context.Context, email string, password string, appID i
 
 	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
 		a.log.Warn("invalid password", slog.String("error", err.Error()))
-
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
@@ -134,7 +136,7 @@ func (a *Auth) Login(ctx context.Context, email string, password string, appID i
 
 	log.Info("user logged in", slog.Int64("id", user.ID))
 
-	token, err := jwt.NewToken(user, app, a.tokenTTL)
+	token, err := jwt.NewToken(user, app, a.tokenTTL, a.jwtSecret)
 	if err != nil {
 		a.log.Error("failed to create token", slog.String("error", err.Error()))
 		return "", fmt.Errorf("%s: %w", op, err)

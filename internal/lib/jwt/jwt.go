@@ -7,20 +7,12 @@ import (
 	"github.com/yowie645/sso-grpc-go/internal/domain/models"
 )
 
-func NewToken(user models.User, app models.App, duration time.Duration) (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
-
-	claims := token.Claims.(jwt.MapClaims)
-
-	claims["uid"] = user.ID
-	claims["email"] = user.Email
-	claims["app_id"] = app.ID
-	claims["exp"] = time.Now().Add(duration).Unix()
-
-	tokenString, err := token.SignedString([]byte("secret"))
-	if err != nil {
-		return "", err
-	}
-
-	return tokenString, nil
+func NewToken(user models.User, app models.App, ttl time.Duration, secret string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"uid":    user.ID,
+		"email":  user.Email,
+		"app_id": app.ID,
+		"exp":    time.Now().Add(ttl).Unix(),
+	})
+	return token.SignedString([]byte(secret))
 }
