@@ -2,9 +2,12 @@ package auth
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-playground/validator/v10"
 	authv1 "github.com/yowie645/protos-sso-grcp-go/gen/go/sso"
+	"github.com/yowie645/sso-grpc-go/internal/services/auth"
+	"github.com/yowie645/sso-grpc-go/internal/storage"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -43,7 +46,7 @@ func (s *serverAPI) validateRequest(req interface{}) error {
 	if err := s.validate.Struct(req); err != nil {
 		validationErrors := err.(validator.ValidationErrors)
 		for _, e := range validationErrors {
-			return status.Errorf(codes.InvalidArgument, "invalid field %s: %v", e.Field(), e.Tag())
+			return status.Errorf(codes.InvalidArgument, "internal server error", e.Field(), e.Tag())
 		}
 	}
 	return nil
@@ -56,7 +59,10 @@ func (s *serverAPI) Login(ctx context.Context, req *authv1.LoginRequest) (*authv
 
 	token, err := s.auth.Login(ctx, req.GetEmail(), req.GetPassword(), int(req.GetAppId()))
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "login failed: %v", err)
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			return nil, status.Error(codes.InvalidArgument, "invalid email or password")
+		}
+		return nil, status.Errorf(codes.Internal, "internal server error")
 	}
 
 	return &authv1.LoginResponse{
@@ -71,7 +77,10 @@ func (s *serverAPI) Register(ctx context.Context, req *authv1.RegisterRequest) (
 
 	userID, err := s.auth.RegisterNewUser(ctx, req.GetEmail(), req.GetPassword())
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "registration failed: %v", err)
+		if errors.Is(err, auth.ErrUserExists) {
+			return nil, status.Error(codes.AlreadyExists, "user already exists")
+		}
+		return nil, status.Errorf(codes.Internal, "internal server error")
 	}
 
 	return &authv1.RegisterResponse{
@@ -86,7 +95,10 @@ func (s *serverAPI) IsAdmin(ctx context.Context, req *authv1.IsAdminRequest) (*a
 
 	isAdmin, err := s.auth.IsAdmin(ctx, req.GetUserId())
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "admin check failed: %v", err)
+		if errors.Is(err, storage.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "user not found")
+		}
+		return nil, status.Errorf(codes.Internal, "internal server error")
 	}
 
 	return &authv1.IsAdminResponse{
