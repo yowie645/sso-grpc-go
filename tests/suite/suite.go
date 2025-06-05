@@ -36,11 +36,20 @@ func New(t *testing.T) (context.Context, *Suite) {
 		cancelCtx()
 	})
 
-	cc, err := grpc.DialContext(context.Background(),
-		grpcAddress(cfg), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	cc, err := grpc.NewClient(
+		grpcAddress(cfg),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
-		t.Fatalf("grpc server connections failed: %v", err)
+		t.Fatalf("grpc client creation failed: %v", err)
 	}
+
+	t.Cleanup(func() {
+		t.Helper()
+		if err := cc.Close(); err != nil {
+			t.Errorf("grpc client close failed: %v", err)
+		}
+	})
 
 	return ctx, &Suite{
 		T:          t,
