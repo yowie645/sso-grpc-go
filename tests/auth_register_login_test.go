@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/brianvoe/gofakeit/v6"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	authv1 "github.com/yowie645/protos-sso-grcp-go/gen/go/sso"
@@ -48,7 +48,7 @@ func TestRegisterLogin_Login_HappyPath(t *testing.T) {
 	assert.True(t, ok)
 
 	assert.Equal(t, email, claims["email"].(string))
-	assert.Equal(t, respReg.GetUserId(), int64(claims["uid"]).(float64))
+	assert.Equal(t, respReg.GetUserId(), claims["uid"].(float64))
 	assert.Equal(t, appID, int(claims["app_id"].(float64)))
 
 	const deltaSeconds = 1
