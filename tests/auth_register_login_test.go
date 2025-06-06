@@ -14,7 +14,7 @@ import (
 
 const (
 	emptyAppID = 0
-	appID      = 0
+	appID      = 1
 	appSecret  = "test-secret"
 
 	passDefaultLen = 10
@@ -40,7 +40,7 @@ func TestRegisterLogin_Login_HappyPath(t *testing.T) {
 	assert.NotEmpty(t, token)
 
 	tokenParsed, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
-		return []byte(appSecret), nil
+		return []byte(st.Cfg.JWTSecret), nil
 	})
 	require.NoError(t, err)
 
@@ -48,8 +48,8 @@ func TestRegisterLogin_Login_HappyPath(t *testing.T) {
 	assert.True(t, ok)
 
 	assert.Equal(t, email, claims["email"].(string))
-	assert.Equal(t, respReg.GetUserId(), claims["uid"].(float64))
-	assert.Equal(t, appID, int(claims["app_id"].(float64)))
+	assert.Equal(t, float64(respReg.GetUserId()), claims["uid"].(float64))
+	assert.Equal(t, float64(appID), claims["app_id"].(float64))
 
 	const deltaSeconds = 1
 
