@@ -9,7 +9,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	authv1 "github.com/yowie645/protos-sso-grcp-go/gen/go/sso"
 	"github.com/yowie645/sso-grpc-go/internal/services/auth"
-	"github.com/yowie645/sso-grpc-go/internal/storage"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -94,7 +93,7 @@ func (s *serverAPI) Register(
 
 	uid, err := s.auth.RegisterNewUser(ctx, in.GetEmail(), in.GetPassword())
 	if err != nil {
-		if errors.Is(err, storage.ErrUserAlreadyExists) {
+		if errors.Is(err, auth.ErrUserExists) {
 			return nil, status.Error(codes.AlreadyExists, "user already exists")
 		}
 

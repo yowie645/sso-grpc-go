@@ -14,7 +14,7 @@ import (
 
 const (
 	emptyAppID = 0
-	appID      = 1
+	appID      = 0
 	appSecret  = "test-secret"
 
 	passDefaultLen = 10
@@ -31,7 +31,12 @@ func TestRegisterLogin_Login_HappyPath(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, respReg.GetUserId())
 
-	respLogin, err := st.AuthClient.Login(ctx, &authv1.LoginRequest{Email: email, Password: pass, AppId: appID})
+	validAppID := 1
+	respLogin, err := st.AuthClient.Login(ctx, &authv1.LoginRequest{
+		Email:    email,
+		Password: pass,
+		AppId:    int32(validAppID),
+	})
 	require.NoError(t, err)
 
 	loginTime := time.Now()
@@ -49,7 +54,7 @@ func TestRegisterLogin_Login_HappyPath(t *testing.T) {
 
 	assert.Equal(t, email, claims["email"].(string))
 	assert.Equal(t, float64(respReg.GetUserId()), claims["uid"].(float64))
-	assert.Equal(t, float64(appID), claims["app_id"].(float64))
+	assert.Equal(t, float64(validAppID), claims["app_id"].(float64))
 
 	const deltaSeconds = 1
 
