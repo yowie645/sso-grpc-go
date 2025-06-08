@@ -45,6 +45,7 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidAppID       = errors.New("invalid app id")
 	ErrUserExists         = errors.New("user already exists")
+	ErrUserNotFound       = errors.New("user not found")
 )
 
 // New returns a new instance of the Auth service
@@ -88,9 +89,10 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, password strin
 
 	id, err := a.usrSaver.SaveUser(ctx, email, passHash)
 	if err != nil {
-		if errors.Is(err, storage.ErrUserAlreadyExists) {
-			log.Warn("user already exists", slog.String("error", err.Error()))
-			return 0, fmt.Errorf("%s: %w", op, ErrUserExists)
+		if err != nil {
+			log.Error("failed to save user", slog.String("error", err.Error()))
+
+			return 0, fmt.Errorf("%s: %w", op, err)
 		}
 
 		log.Error("failed to save user", slog.String("error", err.Error()))
