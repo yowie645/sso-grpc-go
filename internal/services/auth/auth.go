@@ -101,6 +101,10 @@ func (a *Auth) Login(ctx context.Context, email string, password string, appID i
 		slog.Int("app_id", appID),
 	)
 
+	if appID == 0 {
+		return "", fmt.Errorf("%s: %w", op, ErrInvalidAppID)
+	}
+
 	log.Info("attempting to login user")
 
 	user, err := a.usrProvider.GetUser(ctx, email)

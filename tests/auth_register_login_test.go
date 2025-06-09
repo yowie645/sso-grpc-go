@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -120,6 +121,71 @@ func TestRegister_FailCases(t *testing.T) {
 			require.Error(t, err)
 			require.Contains(t, err.Error(), tt.expectedErr)
 
+		})
+	}
+}
+
+func TestLogin_FailCases(t *testing.T) {
+	ctx, st := suite.New(t)
+
+	tests := []struct {
+		name        string
+		email       string
+		password    string
+		appID       int32
+		expectedErr string
+	}{
+		{
+			name:        "Login with Empty Password",
+			email:       gofakeit.Email(),
+			password:    "",
+			appID:       int32(validAppID),
+			expectedErr: "invalid email or password",
+		},
+		{
+			name:        "Login with Empty Email",
+			email:       "",
+			password:    randomFakePassword(),
+			appID:       int32(validAppID),
+			expectedErr: "invalid email or password",
+		},
+		{
+			name:        "Login with Both Empty Email and Password",
+			email:       "",
+			password:    "",
+			appID:       int32(validAppID),
+			expectedErr: "invalid email or password",
+		},
+		{
+			name:        "Login with Non-Matching Password",
+			email:       gofakeit.Email(),
+			password:    randomFakePassword(),
+			appID:       int32(validAppID),
+			expectedErr: "invalid email or password",
+		},
+		{
+			name:        "Login without AppID",
+			email:       gofakeit.Email(),
+			password:    randomFakePassword(),
+			appID:       emptyAppID,
+			expectedErr: "invalid app id",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := st.AuthClient.Login(ctx, &authv1.LoginRequest{
+				Email:    tt.email,
+				Password: tt.password,
+				AppId:    tt.appID,
+			})
+			if err == nil {
+				t.Errorf("expected error, got nil")
+			} else {
+				if !strings.Contains(err.Error(), tt.expectedErr) {
+					t.Errorf("expected error message to contain '%s', got '%s'", tt.expectedErr, err.Error())
+				}
+			}
 		})
 	}
 }
