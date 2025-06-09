@@ -29,7 +29,6 @@ func New(
 		storage,
 		storage,
 		storage,
-		storagePath,
 		tokenTTL,
 		jwtSecret,
 	)

@@ -13,10 +13,9 @@ import (
 )
 
 const (
-	emptyAppID = 0
-	appID      = 0
-	appSecret  = "test-secret"
-
+	emptyAppID     = 0
+	validAppID     = 1
+	appSecret      = "test-secret"
 	passDefaultLen = 10
 )
 
@@ -26,12 +25,13 @@ func TestRegisterLogin_Login_HappyPath(t *testing.T) {
 	email := gofakeit.Email()
 	pass := randomFakePassword()
 
-	respReg, err := st.AuthClient.Register(ctx, &authv1.RegisterRequest{Email: email, Password: pass})
-
+	respReg, err := st.AuthClient.Register(ctx, &authv1.RegisterRequest{
+		Email:    email,
+		Password: pass,
+	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, respReg.GetUserId())
 
-	validAppID := 1
 	respLogin, err := st.AuthClient.Login(ctx, &authv1.LoginRequest{
 		Email:    email,
 		Password: pass,
@@ -42,7 +42,7 @@ func TestRegisterLogin_Login_HappyPath(t *testing.T) {
 	loginTime := time.Now()
 
 	token := respLogin.GetToken()
-	assert.NotEmpty(t, token)
+	require.NotEmpty(t, token)
 
 	tokenParsed, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		return []byte(st.Cfg.JWTSecret), nil
@@ -50,14 +50,13 @@ func TestRegisterLogin_Login_HappyPath(t *testing.T) {
 	require.NoError(t, err)
 
 	claims, ok := tokenParsed.Claims.(jwt.MapClaims)
-	assert.True(t, ok)
+	require.True(t, ok)
 
 	assert.Equal(t, email, claims["email"].(string))
 	assert.Equal(t, float64(respReg.GetUserId()), claims["uid"].(float64))
 	assert.Equal(t, float64(validAppID), claims["app_id"].(float64))
 
 	const deltaSeconds = 1
-
 	assert.InDelta(t, loginTime.Add(st.Cfg.TokenTTL).Unix(), claims["exp"].(float64), deltaSeconds)
 }
 
@@ -82,6 +81,7 @@ func TestRegisterLogin_DuplicatedRegistration(t *testing.T) {
 	assert.Empty(t, respReg.GetUserId())
 	assert.ErrorContains(t, err, "user already exists")
 }
+
 func randomFakePassword() string {
 	return gofakeit.Password(true, true, true, true, false, passDefaultLen)
 }

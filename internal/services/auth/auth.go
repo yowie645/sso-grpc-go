@@ -13,23 +13,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Auth - (пока заглушка)
 type Auth struct {
 	log         *slog.Logger
 	usrSaver    UserSaver
 	usrProvider UserProvider
 	appProvider AppProvider
-	storagePath string
 	tokenTTL    time.Duration
 	jwtSecret   string
 }
 
 type UserSaver interface {
-	SaveUser(
-		ctx context.Context,
-		email string,
-		passHash []byte,
-	) (uid int64, err error)
+	SaveUser(ctx context.Context, email string, passHash []byte) (uid int64, err error)
 }
 
 type UserProvider interface {
@@ -48,28 +42,24 @@ var (
 	ErrUserNotFound       = errors.New("user not found")
 )
 
-// New returns a new instance of the Auth service
 func New(
 	log *slog.Logger,
 	userSaver UserSaver,
 	userProvider UserProvider,
 	appProvider AppProvider,
-	storagePath string,
 	tokenTTL time.Duration,
 	jwtSecret string,
 ) *Auth {
 	return &Auth{
 		usrSaver:    userSaver,
 		usrProvider: userProvider,
-		log:         log,
 		appProvider: appProvider,
-		storagePath: storagePath,
+		log:         log,
 		tokenTTL:    tokenTTL,
 		jwtSecret:   jwtSecret,
 	}
 }
 
-// RegisterNewUser implements auth.Auth.
 func (a *Auth) RegisterNewUser(ctx context.Context, email string, password string) (int64, error) {
 	const op = "auth.RegisterNewUser"
 
@@ -78,10 +68,9 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, password strin
 		slog.String("email", email),
 	)
 
-	log.Info("register new user")
+	log.Info("registering new user")
 
 	passHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-
 	if err != nil {
 		log.Error("failed to hash password", slog.String("error", err.Error()))
 		return 0, fmt.Errorf("%s: %w", op, err)
@@ -103,50 +92,54 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, password strin
 	return id, nil
 }
 
-// Login implements auth.Auth.
 func (a *Auth) Login(ctx context.Context, email string, password string, appID int) (string, error) {
 	const op = "auth.Login"
 
 	log := a.log.With(
 		slog.String("op", op),
 		slog.String("email", email),
+		slog.Int("app_id", appID),
 	)
 
-	log.Info("login user")
+	log.Info("attempting to login user")
 
 	user, err := a.usrProvider.GetUser(ctx, email)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
-			a.log.Warn("user not found", slog.String("email", email))
+			log.Warn("user not found", slog.String("email", email))
 			return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 		}
 
-		a.log.Error("failed to get user", slog.String("error", err.Error()))
+		log.Error("failed to get user", slog.String("error", err.Error()))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
-		a.log.Warn("invalid password", slog.String("error", err.Error()))
+		log.Warn("invalid password", slog.String("error", err.Error()))
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
 	app, err := a.appProvider.App(ctx, appID)
 	if err != nil {
+		if errors.Is(err, storage.ErrAppNotFound) {
+			log.Warn("app not found", slog.Int("app_id", appID))
+			return "", fmt.Errorf("%s: %w", op, ErrInvalidAppID)
+		}
+		log.Error("failed to get app", slog.String("error", err.Error()))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	log.Info("user logged in", slog.Int64("id", user.ID))
+	log.Info("user logged in successfully", slog.Int64("user_id", user.ID))
 
 	token, err := jwt.NewToken(user, app, a.tokenTTL, a.jwtSecret)
 	if err != nil {
-		a.log.Error("failed to create token", slog.String("error", err.Error()))
+		log.Error("failed to generate token", slog.String("error", err.Error()))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	return token, nil
 }
 
-// IsAdmin implements auth.Auth.
 func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	const op = "Auth.IsAdmin"
 
@@ -161,10 +154,9 @@ func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			log.Warn("user not found", slog.Int64("user_id", userID))
-
-			return false, fmt.Errorf("%s: %w", op, ErrInvalidAppID)
+			return false, fmt.Errorf("%s: %w", op, ErrUserNotFound)
 		}
-		return false, fmt.Errorf("#{op}: #{err}")
+		return false, fmt.Errorf("%s: %w", op, err)
 	}
 
 	log.Info("checked if user is admin", slog.Bool("is_admin", isAdmin))
